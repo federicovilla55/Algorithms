@@ -9,7 +9,7 @@ class SuffixTrie:
 
     def insert(self, word):
         for i in range(len(word)):
-            self._insert_suffix(word[:i+1])
+            self._insert_suffix(word[i:])
 
     def _insert_suffix(self, suffix):
         node = self.root
@@ -29,7 +29,7 @@ class SuffixTrie:
 
     def delete(self, word):
         for i in range(len(word)):
-            self._delete_suffix(word[:i+1])
+            self._delete_suffix(word[i:])
 
     def _delete_suffix(self, suffix):
         SuffixTrie._delete_helper(self.root, suffix, 0)
@@ -56,6 +56,5 @@ if __name__ == "__main__":
     trie.insert("function")
     trie.insert("fiction")
     print(trie.search("laptop"))    # True
-    print(trie.search("lap"))     # True
-    trie.delete("lapt")
-    print(trie.search("lap"))     # False
+    print(trie.search("lap"))       # False
+    print(trie.search("top"))       # True
