@@ -1,85 +1,118 @@
-''' Python Implementation of the RSA asymmetric cryptography Algorithm.
-    It was developed by Ron Rivest, Adi Shamir and Leonard Adleman in 1977.
-    It is based on some Modular arithmetic theorems like the Fermat's little theorem
-    and the Euler's theorem. '''
-
-import numpy
 import random
+import math
 
-MAX_PRIME_NUMBER = 4000
-MIN_PRIME_NUMBER = 53
+class RSA:
+    KEY_BIT_SIZE = 1024
 
-def primesGenerator(n1):
-    sieve = numpy.ones(n1//2, dtype=numpy.bool)
-    for i in range(3, int(n1**0.5)+1, 2):
-        if sieve[i//2]:
-            sieve[i*i//2::i] = False
-    l = 2*numpy.nonzero(sieve)[0][1::]+1
-    randPrime = random.choice(l)
-    while(randPrime <=MIN_PRIME_NUMBER):
-        randPrime = random.choice(l)
-    return  randPrime
+    @staticmethod
+    def generate_prime(bits):
+        while True:
+            p = random.getrandbits(bits)
+            if p % 2 == 0:
+                p += 1
+            if RSA.is_prime(p):
+                return p
 
-def isCoprime(p, q):
-    while q != 0:
-        p, q = q, p%q
-    return p == 1
+    @staticmethod
+    # Miller-Rabin (with 12 rounds of testing)
+    def is_prime(n, k=12):
+        if n <= 3:
+            return n == 2 or n == 3
+        if n % 2 == 0:
+            return False
 
-def coprimeGenerator(phi):
-    i = random.randrange(int(phi/5)) + 3
-    found = False
-    while(i<phi and (not found)):
-        if(isCoprime(i, phi)):
-            found= True
-        else:
-            i=i+1
-    return i
+        # Miller-Rabin primality test implementation
+        def check_primality(a, s, d, n):
+            x = pow(a, d, n)
+            if x == 1:
+                return True
+            for _ in range(s - 1):
+                if x == n - 1:
+                    return True
+                x = pow(x, 2, n)
+            return x == n - 1
+        
+        s = 0
+        d = n - 1
+        while d % 2 == 0:
+            d //= 2
+            s += 1
+        for _ in range(k):
+            a = random.randrange(2, n - 1)
+            if not check_primality(a, s, d, n):
+                return False
+        return True
 
-def findD(e, phi):
-    i=random.randrange(int(phi/e)) + 3
-    found = False
-    while(i<phi and (not(found))):
-        if((i*e)%phi==1):
-            found=True
-        else:
-            i=i+1
-    return i
+    @staticmethod
+    def generate_coprime(phi):
+        while True:
+            e = random.randrange(2, phi)
+            if math.gcd(e, phi) == 1:
+                return e
 
-def RSA_encrypt(P, e, n):
-    C = (P ** e) % n 
-    return C
+    # Extended Euclidean Algorithm to compute modular inverse
+    @staticmethod
+    def extended_gcd(a, b):
+        prev_x, x = 0, 1
+        prev_y, y = 1, 0
+        while a != 0:
+            quotient, remainder = b // a, b % a
+            prev_x, x = x, prev_x - quotient * x
+            prev_y, y = y, prev_y - quotient * y
+            b, a = a, remainder
+        gcd = b
+        return gcd, prev_x, prev_y
 
-def RSA_decrypt(C, d, n):
-    P = (C ** d) % n
-    return P
 
+    @staticmethod
+    def mod_inverse(a, m):
+        gcd, x, y = RSA.extended_gcd(a, m)
+        if gcd != 1:
+            raise ValueError('Error: modular inverse does not exist')
+        return x % m
+
+
+    # Square and Multiply
+    @staticmethod
+    def mod_exp(base, exp, mod):
+        result = 1
+        base = base % mod
+        while exp > 0:
+            if exp % 2 == 1:
+                result = (result * base) % mod
+            exp = exp >> 1
+            base = (base * base) % mod
+        return result
+
+    @staticmethod
+    def RSA_encrypt(P, e, n):
+        return RSA.mod_exp(P, e, n)
+
+    @staticmethod
+    def RSA_decrypt(C, d, n):
+        return RSA.mod_exp(C, d, n)
 
 if __name__ == "__main__":
-    S = str(input("Insert a string you want to encrypt: "))
-    Cryptresult=[]
-    prime=[]
-    prime.append(primesGenerator(random.randrange(MAX_PRIME_NUMBER) + MIN_PRIME_NUMBER))
-    prime.append(primesGenerator(random.randrange(MAX_PRIME_NUMBER) + MIN_PRIME_NUMBER))
-
-    n = prime[0]*prime[1]
-    phi = (prime[0]-1) * (prime[1]-1)
-    e = coprimeGenerator(phi)
+    S = str(input("Insert a string to encrypt: "))
+    
+    prime1 = RSA.generate_prime(RSA.KEY_BIT_SIZE)
+    prime2 = RSA.generate_prime(RSA.KEY_BIT_SIZE)
+    n = prime1 * prime2
+    phi = (prime1 - 1) * (prime2 - 1)
+    
+    e = RSA.generate_coprime(phi)
     print("Public Key: (", n, ",", e, ")")
-    d = findD(e, phi)
-    print("Private Key: (", n, ",", d, ")")
 
+    d = RSA.mod_inverse(e, phi)
+    print("Private Key: (", n, ",", d, ")")
+    
     print("Cyphertext: ", end='')
     for letter in S:
-        l = RSA_encrypt(ord(letter), e, n)
-        Cryptresult.append(l)
+        l = RSA.RSA_encrypt(ord(letter), e, n)
         print(l, end='')
-
+    
     print("\nDecrypted: ", end='')
-    for el in Cryptresult:
-        print(chr(RSA_decrypt(el, d, n)), end='')
+    for letter in S:
+        l = RSA.RSA_decrypt(RSA.RSA_encrypt(ord(letter), e, n), d, n)
+        print(chr(l), end='')
     print("\n")
-
-''' A more simple version of the program could be run
-    to encrypt/decrypt numbers, in that case the S variable
-    should receive an int and the for loop should be removed
-    because nothing needs to be split. '''
