@@ -21,7 +21,7 @@ class RSA:
         if n % 2 == 0:
             return False
 
-        # Miller-Rabin primality test implementation
+        # Miller-Rabin primality test
         def check_primality(a, s, d, n):
             x = pow(a, d, n)
             if x == 1:
